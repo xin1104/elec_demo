@@ -1,106 +1,139 @@
-# 电力运检大模型调优验证适配Demo
+# 大模型调优验证适配项目
 
 ## 项目概述
 
-本项目基于技术规范书要求，实现了大模型调优验证适配的完整流程，包括：
-1. 大模型基座运检场景应用优化试验
-2. 面向电力运检的大模型压缩实施验证
-3. 面向电力运检的大模型应用环境适配运行
+本项目旨在为电力运检场景提供大模型调优验证适配服务，包括大模型基座运检场景应用优化试验、面向电力运检的大模型压缩实施验证、面向电力运检的大模型应用环境适配运行。
 
-## 技术栈
-
-- 大模型：通义千问Qwen系列（Qwen2-0.5B）
-- 开发语言：Python 3.8+
-- 核心库：
-  - transformers：模型加载和训练
-  - datasets：数据处理
-  - torch：深度学习框架
-  - fastapi：API服务
-  - peft：参数高效微调（LoRA）
-
-## 项目结构
+## 目录结构
 
 ```
 demo_system/
-├── data_preprocessing/    # 数据预处理模块
-│   └── generate_synthetic_data.py  # 生成模拟数据
-├── model_training/        # 模型训练模块
-│   └── train_model.py     # 模型训练脚本
-├── model_compression/     # 模型压缩模块
-│   └── compress_model.py  # 模型压缩脚本
-├── deployment/            # 环境适配模块
-│   └── app.py             # API服务
-├── data/                  # 数据目录
-├── utils/                 # 工具函数
-├── requirements.txt       # 依赖包
-├── run_demo.py            # 主运行脚本
-└── README.md              # 项目说明
+├── clean/            # 数据处理模块
+│   ├── data_processor.py  # 数据处理脚本
+│   └── requirements.txt    # 依赖文件
+├── crawl/            # 爬虫模块
+│   ├── electricity_crawler.py  # 电力资料爬虫
+│   └── requirements.txt        # 依赖文件
+├── data/             # 数据目录
+│   └── ...           # 电力相关文本资料
+├── LlamaFactory/     # 大模型微调框架
+└── README.md         # 项目说明文档
 ```
 
-## 运行说明
+## 安装方法
 
-### 1. 安装依赖
+### 1. 环境准备
+
+确保您的系统已安装Python 3.8或更高版本。
+
+### 2. 安装依赖
+
+#### 数据处理模块依赖
 
 ```bash
+cd demo_system/clean
 pip install -r requirements.txt
 ```
 
-### 2. 运行完整流程
+#### 爬虫模块依赖
 
 ```bash
-python run_demo.py
+cd demo_system/crawl
+pip install -r requirements.txt
 ```
 
-该脚本会自动执行以下步骤：
-1. 安装依赖包
-2. 生成模拟数据
-3. 训练模型
-4. 压缩模型
-5. 启动API服务
-6. 测试API服务
+#### LlamaFactory依赖
 
-### 3. 单独运行各模块
-
-#### 生成模拟数据
 ```bash
-python data_preprocessing/generate_synthetic_data.py
+cd demo_system/LlamaFactory
+pip install -e .
+pip install -r requirements/metrics.txt
 ```
 
-#### 训练模型
+## 使用方法
+
+### 1. 数据收集
+
+#### 方法一：使用爬虫收集数据
+
 ```bash
-python model_training/train_model.py
+cd demo_system/crawl
+python electricity_crawler.py
 ```
 
-#### 压缩模型
+爬虫会自动爬取电力相关网站的文章内容，并保存到`demo_system/data`目录。
+
+#### 方法二：手动添加数据
+
+将电力相关的文本资料保存到`demo_system/data`目录，格式为.txt文件。
+
+### 2. 数据处理
+
+运行数据处理脚本，将文本资料转换为大模型微调所需的QA问答对格式：
+
 ```bash
-python model_compression/compress_model.py
+cd demo_system/clean
+python data_processor.py
 ```
 
-#### 启动API服务
+运行时需要输入DeepSeek API密钥，脚本会自动处理`demo_system/data`目录中的文本文件，生成QA问答对并保存到`processed_qa_pairs.json`文件。
+
+### 3. 模型微调
+
+使用LlamaFactory框架对大模型进行微调：
+
 ```bash
-python deployment/app.py
+cd demo_system/LlamaFactory
+python train.py --config configs/train_config.yaml
 ```
 
-## API接口
+### 4. 模型压缩
 
-服务启动后，可通过以下接口访问：
+对微调后的模型进行压缩：
 
-- **健康检查**：http://localhost:8000/health
-- **模型推理**：http://localhost:8000/predict
-- **模型信息**：http://localhost:8000/model/info
-- **API文档**：http://localhost:8000/docs
+```bash
+cd demo_system/LlamaFactory
+python train.py --config configs/compress_config.yaml
+```
 
-## 模型压缩
+### 5. 模型部署
 
-采用混合压缩方法：
-1. **量化**：使用动态量化减少模型大小
-2. **LoRA**：使用参数高效微调减少训练参数量
+将压缩后的模型部署到生产环境：
 
-压缩前后对比会生成在 `compression_report.json` 文件中。
+```bash
+cd demo_system/LlamaFactory
+python api.py --model_name_or_path outputs/qwen3.5-finetuned
+```
+
+## 配置说明
+
+### 数据处理配置
+
+在`demo_system/clean/data_processor.py`中，您可以修改以下参数：
+
+- `data_dir`：数据目录路径
+- `output_file`：输出文件路径
+- `max_tokens`：API请求的最大令牌数
+- `temperature`：生成文本的温度参数
+
+### 模型微调配置
+
+在`demo_system/LlamaFactory/configs/train_config.yaml`中，您可以修改以下参数：
+
+- `model_name_or_path`：预训练模型路径
+- `data_path`：训练数据路径
+- `output_dir`：输出目录
+- `learning_rate`：学习率
+- `num_train_epochs`：训练轮次
+- `per_device_train_batch_size`：批量大小
 
 ## 注意事项
 
-1. 本项目使用的是Qwen2-0.5B模型，适合在本地环境运行
-2. 首次运行会自动下载模型，可能需要较长时间
-3. 训练过程需要一定的GPU资源（推荐至少8GB显存）
-4. 若本地资源不足，可修改 `train_model.py` 中的批处理大小和模型规格
+1. 使用DeepSeek API需要申请API密钥
+2. 爬虫运行可能会受到网站反爬机制的限制
+3. 模型微调需要足够的GPU资源
+4. 请确保数据符合相关法律法规要求
+
+## 联系方式
+
+如有问题，请联系项目负责人。

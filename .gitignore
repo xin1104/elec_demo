@@ -47,7 +47,7 @@ lerna-debug.log*
 *~
 
 # Data files (if large)
-data/
+# data/
 
 # Environment variables
 .env
