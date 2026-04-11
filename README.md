@@ -7,16 +7,23 @@
 ## 目录结构
 
 ```
-demo_system/
 ├── clean/            # 数据处理模块
 │   ├── data_processor.py  # 数据处理脚本
-│   └── requirements.txt    # 依赖文件
+│   ├── processed_files.json  # 处理文件记录
+│   └── processed_qa_pairs.json  # 生成的问答对数据
 ├── crawl/            # 爬虫模块
 │   ├── electricity_crawler.py  # 电力资料爬虫
-│   └── requirements.txt        # 依赖文件
+│   └── visited_urls.json        # 已访问URL记录
 ├── data/             # 数据目录
 │   └── ...           # 电力相关文本资料
+├── eval/             # 模型评估模块
+│   ├── config.py     # 评估配置
+│   ├── generate_questions.py  # 生成专业问题
+│   ├── get_model_answers.py  # 获取模型回答
+│   ├── evaluate_answers.py  # 评估模型回答
+│   └── run_evaluation.py  # 评估主脚本
 ├── LlamaFactory/     # 大模型微调框架
+├── requirements.txt  # 项目依赖
 └── README.md         # 项目说明文档
 ```
 
@@ -24,28 +31,17 @@ demo_system/
 
 ### 1. 环境准备
 
-确保您的系统已安装Python 3.8或更高版本。
+确保您的系统已安装Python 3.11或更高版本（LlamaFactory要求）。
 
 ### 2. 安装依赖
 
-#### 数据处理模块依赖
+项目根目录下提供了统一的依赖配置文件，执行以下命令安装所有依赖：
 
 ```bash
-cd demo_system/clean
 pip install -r requirements.txt
-```
 
-#### 爬虫模块依赖
-
-```bash
-cd demo_system/crawl
-pip install -r requirements.txt
-```
-
-#### LlamaFactory依赖
-
-```bash
-cd demo_system/LlamaFactory
+# 安装LlamaFactory
+cd LlamaFactory
 pip install -e .
 pip install -r requirements/metrics.txt
 ```
@@ -57,59 +53,136 @@ pip install -r requirements/metrics.txt
 #### 方法一：使用爬虫收集数据
 
 ```bash
-cd demo_system/crawl
+cd crawl
 python electricity_crawler.py
 ```
 
-爬虫会自动爬取电力相关网站的文章内容，并保存到`demo_system/data`目录。
+爬虫会自动爬取电力相关网站的文章内容，并保存到`data`目录。
 
 #### 方法二：手动添加数据
 
-将电力相关的文本资料保存到`demo_system/data`目录，格式为.txt文件。
+将电力相关的文本资料保存到`data`目录，格式为.txt文件。
 
 ### 2. 数据处理
 
 运行数据处理脚本，将文本资料转换为大模型微调所需的QA问答对格式：
 
 ```bash
-cd demo_system/clean
+cd clean
 python data_processor.py
 ```
 
-运行时需要输入DeepSeek API密钥，脚本会自动处理`demo_system/data`目录中的文本文件，生成QA问答对并保存到`processed_qa_pairs.json`文件。
+运行时需要输入DeepSeek API密钥，脚本会自动处理`data`目录中的文本文件，生成QA问答对并保存到`processed_qa_pairs.json`文件。
 
 ### 3. 模型微调
 
-使用LlamaFactory框架对大模型进行微调：
+使用LlamaFactory框架对Qwen3.5 0.8B模型进行微调：
+
+#### 方法一：使用命令行
 
 ```bash
-cd demo_system/LlamaFactory
-python train.py --config configs/train_config.yaml
+cd LlamaFactory
+python src/train.py --config examples/train_lora/qwen3_5_0_8b_lora_sft.yaml
 ```
 
-### 4. 模型压缩
-
-对微调后的模型进行压缩：
+#### 方法二：使用Web UI
 
 ```bash
-cd demo_system/LlamaFactory
-python train.py --config configs/compress_config.yaml
+cd LlamaFactory
+python src/webui.py
 ```
 
-### 5. 模型部署
+然后访问 `http://127.0.0.1:7860` 进行可视化微调。
 
-将压缩后的模型部署到生产环境：
+### 4. 模型压缩（待实现）
+
+对微调后的模型进行压缩，减小模型体积，提高推理速度。
+
+### 5. 模型部署（待实现）
+
+将微调后的模型部署到生产环境，与业务系统对接。
+
+## 训练结果分析
+
+### 训练参数
+
+- 模型：Qwen3.5 0.8B-Instruct
+- 微调方法：LoRA
+- 训练轮次：3
+- 批量大小：4
+- 学习率：1e-4
+- LoRA秩：8
+- LoRA Alpha：16
+
+### 训练指标
+
+| 指标 | 值 |
+|------|-----|
+| 训练轮次 | 3.0 |
+| 训练样本数 | 123,920 tokens |
+| 训练时间 | 5分03秒 |
+| 最终损失 | 1.565 |
+| 训练速度 | 2.082 样本/秒 |
+| 可训练参数 | 5,411,328 (0.63%) |
+| 总参数 | 858,397,248 |
+
+### 损失曲线分析
+
+训练损失从初始的1.9左右逐渐下降到1.4左右，整体趋势良好，说明模型正在有效学习电力运检领域的知识。
+
+## 模型效果对比方法
+
+### 1. 定量评估
+
+使用以下命令对训练前后的模型进行评估：
 
 ```bash
-cd demo_system/LlamaFactory
-python api.py --model_name_or_path outputs/qwen3.5-finetuned
+cd LlamaFactory
+python src/eval.py --model_name_or_path Qwen/Qwen3.5-0.8B-Instruct --eval_dataset elec_qa
+python src/eval.py --model_name_or_path saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42 --eval_dataset elec_qa
 ```
+
+### 2. 定性评估
+
+使用以下命令与模型进行交互，对比训练前后的回答质量：
+
+```bash
+cd LlamaFactory
+# 原始模型
+python src/chat.py --model_name_or_path Qwen/Qwen3.5-0.8B-Instruct
+
+# 微调后模型
+python src/chat.py --model_name_or_path saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42
+```
+
+### 3. 专业问题测试
+
+使用项目中的eval模块进行专业问题测试：
+
+1. **配置API密钥**：编辑 `eval/config.py` 文件，将 `DEEPSEEK_API_KEY` 替换为您的 DeepSeek API 密钥
+
+2. **运行评估流程**：
+
+```bash
+cd eval
+python run_evaluation.py
+```
+
+3. **选择评估方式**：
+   - 选项 4：运行完整评估流程
+   - 选项 1-3：单独运行各个步骤
+
+评估系统会：
+- 生成电力运检领域的专业问题
+- 调用训练前后的模型分别回答
+- 对回答进行盲打分评估
+- 输出两个模型的评分结果
 
 ## 配置说明
 
 ### 数据处理配置
 
-在`demo_system/clean/data_processor.py`中，您可以修改以下参数：
+在`clean/data_processor.py`中，您可以修改以下参数：
 
 - `data_dir`：数据目录路径
 - `output_file`：输出文件路径
@@ -118,20 +191,21 @@ python api.py --model_name_or_path outputs/qwen3.5-finetuned
 
 ### 模型微调配置
 
-在`demo_system/LlamaFactory/configs/train_config.yaml`中，您可以修改以下参数：
+在`LlamaFactory/examples/train_lora/qwen3_5_0_8b_lora_sft.yaml`中，您可以修改以下参数：
 
 - `model_name_or_path`：预训练模型路径
-- `data_path`：训练数据路径
-- `output_dir`：输出目录
+- `dataset`：训练数据集名称
+- `epoch`：训练轮次
+- `batch_size`：批量大小
 - `learning_rate`：学习率
-- `num_train_epochs`：训练轮次
-- `per_device_train_batch_size`：批量大小
+- `lora_rank`：LoRA秩
+- `lora_alpha`：LoRA Alpha值
 
 ## 注意事项
 
 1. 使用DeepSeek API需要申请API密钥
 2. 爬虫运行可能会受到网站反爬机制的限制
-3. 模型微调需要足够的GPU资源
+3. 模型微调需要足够的GPU资源（推荐至少8GB显存）
 4. 请确保数据符合相关法律法规要求
 
 ## 联系方式

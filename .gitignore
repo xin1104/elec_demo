@@ -10,6 +10,7 @@ env.local/
 env.development.local/
 env.test.local/
 env.production.local/
+.venv
 
 # Editor directories and files
 .vscode/*
@@ -60,3 +61,13 @@ lerna-debug.log*
 build/
 dist/
 *.egg-info/
+
+# LlamaFactory generated files
+LlamaFactory/saves/
+LlamaFactory/llamaboard_cache/
+LlamaFactory/output/
+
+# Evaluation files
+eval/questions.json
+eval/answers.json
+eval/evaluation_results.json

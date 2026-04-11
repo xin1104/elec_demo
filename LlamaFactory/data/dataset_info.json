@@ -745,5 +745,12 @@
       "prompt": "content"
     },
     "folder": "python"
+  },
+  "elec_qa": {
+    "file_name": "processed_qa_pairs.json",
+    "columns": {
+      "prompt": "instruction",
+      "response": "output"
+    }
   }
 }

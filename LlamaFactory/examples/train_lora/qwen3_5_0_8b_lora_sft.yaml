@@ -1,0 +1,41 @@
+# Qwen3.5 0.8B LoRA 微调配置
+
+# 模型参数
+model_name_or_path: Qwen/Qwen3.5-0.8B-Instruct
+template: qwen3_5
+
+# 训练参数
+stage: sft
+trainer: default
+
+# 数据参数
+dataset: elec_qa
+train_on_inputs: false
+val_size: 0.1
+
+# 训练设置
+epoch: 3
+batch_size: 4
+learning_rate: 1e-4
+warmup_ratio: 0.1
+max_grad_norm: 1.0
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.1
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# 设备设置
+device: cuda
+dtype: float16
+
+# 输出设置
+save_dir: output/qwen3.5-0.8b-lora-elec
+logging_steps: 10
+save_steps: 100
