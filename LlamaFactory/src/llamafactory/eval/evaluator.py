@@ -146,7 +146,7 @@ class Evaluator:
         )
         print(score_info)
         if self.eval_args.save_dir is not None:
-            os.makedirs(self.eval_args.save_dir, exist_ok=False)
+            os.makedirs(self.eval_args.save_dir, exist_ok=True)
             with open(os.path.join(self.eval_args.save_dir, "results.json"), "w", encoding="utf-8", newline="\n") as f:
                 json.dump(results, f, indent=2)
 
@@ -156,3 +156,7 @@ class Evaluator:
 
 def run_eval() -> None:
     Evaluator().eval()
+
+
+if __name__ == "__main__":
+    run_eval()

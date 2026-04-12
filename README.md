@@ -50,7 +50,7 @@ pip install -r requirements/metrics.txt
 
 ### 1. 数据收集
 
-#### 方法一：使用爬虫收集数据
+#### 方法一：使用爬虫收集数据(目前不可用)
 
 ```bash
 cd crawl
@@ -85,7 +85,7 @@ cd LlamaFactory
 python src/train.py --config examples/train_lora/qwen3_5_0_8b_lora_sft.yaml
 ```
 
-#### 方法二：使用Web UI
+#### 方法二：使用Web UI（推荐）
 
 ```bash
 cd LlamaFactory
@@ -132,51 +132,41 @@ python src/webui.py
 
 ## 模型效果对比方法
 
-### 1. 定量评估
+### 1. 定性评估
 
-使用以下命令对训练前后的模型进行评估：
-
-```bash
-cd LlamaFactory
-python src/eval.py --model_name_or_path Qwen/Qwen3.5-0.8B-Instruct --eval_dataset elec_qa
-python src/eval.py --model_name_or_path saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42 --eval_dataset elec_qa
-```
-
-### 2. 定性评估
-
-使用以下命令与模型进行交互，对比训练前后的回答质量：
+使用Web UI与模型进行交互，对比训练前后的回答质量：
 
 ```bash
 cd LlamaFactory
-# 原始模型
-python src/chat.py --model_name_or_path Qwen/Qwen3.5-0.8B-Instruct
-
-# 微调后模型
-python src/chat.py --model_name_or_path saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42
+python src/webui.py
 ```
 
-### 3. 专业问题测试
+然后在Web UI中：
+- **训练前的模型**：选择模型路径为 `../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5`
+- **训练后的模型**：选择模型路径为 `../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5`，并选择LoRA路径为 `saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42`
 
-使用项目中的eval模块进行专业问题测试：
+### 2. DeepSeek自动评估
+
+使用DeepSeek API对模型回答进行自动评估：
 
 1. **配置API密钥**：编辑 `eval/config.py` 文件，将 `DEEPSEEK_API_KEY` 替换为您的 DeepSeek API 密钥
 
-2. **运行评估流程**：
+2. **运行自动评估**：
 
 ```bash
 cd eval
 python run_evaluation.py
 ```
 
-3. **选择评估方式**：
-   - 选项 4：运行完整评估流程
-   - 选项 1-3：单独运行各个步骤
+选择选项3，仅运行自动评估步骤（前提是已有问题和回答数据）
 
-评估系统会：
-- 生成电力运检领域的专业问题
-- 调用训练前后的模型分别回答
-- 对回答进行盲打分评估
-- 输出两个模型的评分结果
+3. **评估方式说明**：
+   - 选项 1：仅生成问题
+   - 选项 2：仅获取模型回答
+   - 选项 3：仅运行自动评估（需要已有问题和回答）
+   - 选项 4：运行完整评估流程（一键执行）
+
+**注意**：评估系统会使用DeepSeek-V3模型对两个模型（训练前和训练后）的回答进行盲打分，满分100分，并输出两个模型的评分结果。
 
 ## 配置说明
 

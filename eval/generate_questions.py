@@ -1,21 +1,36 @@
 import json
 import requests
+import sys
 from config import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, QUESTION_COUNT, MAX_TOKENS, TEMPERATURE, QUESTIONS_FILE
 
-def generate_questions():
-    """生成电力运检领域的专业问题"""
-    prompt = f"请生成{QUESTION_COUNT}个电力运检领域的专业问题，涵盖以下方面：
-1. 电力设备运检（如变压器、断路器、线路等）
-2. 继电保护配置与维护
-3. 配电线路运维技能
-4. 电力突发事件应急处理
-5. 智能电网发展趋势
+def get_api_key():
+    """获取API密钥，如果配置中的密钥无效则提示用户输入"""
+    if DEEPSEEK_API_KEY == "your_deepseek_api_key" or not DEEPSEEK_API_KEY:
+        print("请输入DeepSeek API密钥: ", end="")
+        api_key = input().strip()
+        if not api_key:
+            print("错误: API密钥不能为空")
+            sys.exit(1)
+        return api_key
+    return DEEPSEEK_API_KEY
 
-每个问题要专业、具体，能够测试模型对电力运检领域知识的掌握程度。""
+def generate_questions(api_key=None):
+    """生成电力运检领域的专业问题"""
+    if api_key is None:
+        api_key = get_api_key()
+    prompt = (
+        f"请生成{QUESTION_COUNT}个电力运检领域的专业问题，涵盖以下方面：\n"
+        "1. 电力设备运检（如变压器、断路器、线路等）\n"
+        "2. 继电保护配置与维护\n"
+        "3. 配电线路运维技能\n"
+        "4. 电力突发事件应急处理\n"
+        "5. 智能电网发展趋势\n\n"
+        "每个问题要专业、具体，能够测试模型对电力运检领域知识的掌握程度。"
+    )
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
+        "Authorization": f"Bearer {api_key}"
     }
 
     data = {

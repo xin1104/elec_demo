@@ -71,3 +71,6 @@ LlamaFactory/output/
 eval/questions.json
 eval/answers.json
 eval/evaluation_results.json
+
+# Model files
+model/
