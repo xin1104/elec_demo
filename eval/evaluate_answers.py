@@ -2,19 +2,20 @@ import json
 import random
 import os
 import sys
-from config import ANSWERS_FILE, EVALUATION_FILE, DEEPSEEK_API_KEY, DEEPSEEK_API_URL, MAX_TOKENS, TEMPERATURE
+from config import ANSWERS_FILE, EVALUATION_FILE, DEEPSEEK_API_KEY, MAX_TOKENS, TEMPERATURE
 import requests
 
-def get_api_key():
-    """获取API密钥，如果配置中的密钥无效则提示用户输入"""
-    if DEEPSEEK_API_KEY == "your_deepseek_api_key" or not DEEPSEEK_API_KEY:
-        print("请输入DeepSeek API密钥: ", end="")
-        api_key = input().strip()
-        if not api_key:
-            print("错误: API密钥不能为空")
-            sys.exit(1)
-        return api_key
-    return DEEPSEEK_API_KEY
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from api_options import ensure_api_config, prompt_api_config
+
+
+def get_api_config():
+    """获取 API 配置，如果配置中的密钥无效则提示用户选择服务商和模型"""
+    try:
+        return prompt_api_config(None if DEEPSEEK_API_KEY == "your_deepseek_api_key" else DEEPSEEK_API_KEY)
+    except ValueError as exc:
+        print(f"错误: {exc}")
+        sys.exit(1)
 
 def blind_evaluate():
     """对两个模型的回答进行盲打分"""
@@ -108,10 +109,12 @@ def blind_evaluate():
 
     print("\n评估结果已保存到evaluation_results.json")
 
-def auto_evaluate(api_key=None):
-    """使用DeepSeek API自动评估回答"""
-    if api_key is None:
-        api_key = get_api_key()
+def auto_evaluate(api_config=None):
+    """使用所选 API 自动评估回答"""
+    if api_config is None:
+        api_config = get_api_config()
+    else:
+        api_config = ensure_api_config(api_config)
 
     if not os.path.exists(ANSWERS_FILE):
         print(f"回答文件{ANSWERS_FILE}不存在，请先运行get_model_answers.py")
@@ -124,7 +127,7 @@ def auto_evaluate(api_key=None):
     original_answers = data["original_model"]
     fine_tuned_answers = data["fine_tuned_model"]
 
-    print(f"开始使用DeepSeek API自动评估{len(questions)}个问题的回答")
+    print(f"开始使用{api_config.provider} API自动评估{len(questions)}个问题的回答")
 
     results = []
 
@@ -149,11 +152,11 @@ def auto_evaluate(api_key=None):
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {api_config.api_key}"
         }
 
         payload = {
-            "model": "deepseek-chat",
+            "model": api_config.model,
             "messages": [
                 {"role": "system", "content": "你是一位电力运检领域的专家，擅长评估专业问题的回答质量。"},
                 {"role": "user", "content": prompt}
@@ -162,12 +165,12 @@ def auto_evaluate(api_key=None):
             "temperature": TEMPERATURE
         }
 
-        response = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload)
+        response = requests.post(api_config.api_url, headers=headers, json=payload)
         response_json = response.json()
 
         if "choices" in response_json:
             content = response_json["choices"][0]["message"]["content"]
-            print("DeepSeek评估结果:")
+            print(f"{api_config.provider}评估结果:")
             print(content)
 
             score_a = 0
@@ -248,7 +251,7 @@ def main():
     """主函数"""
     print("请选择评估方式：")
     print("1. 人工盲评估")
-    print("2. DeepSeek API自动评估")
+    print("2. API自动评估")
     choice = input("请输入选项（1/2）: ")
 
     if choice == "1":

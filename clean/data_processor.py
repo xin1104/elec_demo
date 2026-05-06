@@ -1,17 +1,24 @@
 import os
 import json
 import requests
+import sys
 from typing import List, Dict
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from api_options import ApiConfig, ensure_api_config, prompt_api_config
 
 class DataProcessor:
     def __init__(self, data_dir: str, output_file: str):
         self.data_dir = data_dir
         self.output_file = output_file
-        self.deepseek_api_key = None
+        self.api_config = None
         self.processed_files_file = "processed_files.json"
     
     def set_api_key(self, api_key: str):
-        self.deepseek_api_key = api_key
+        self.api_config = ensure_api_config(api_key)
+
+    def set_api_config(self, api_config: ApiConfig):
+        self.api_config = api_config
     
     def get_processed_files(self) -> set:
         """获取已处理的文件列表"""
@@ -50,14 +57,14 @@ class DataProcessor:
             return f.read()
     
     def generate_qa_pairs(self, text: str) -> List[Dict[str, str]]:
-        """使用DeepSeek API生成QA问答对"""
-        if not self.deepseek_api_key:
-            raise ValueError("请先设置DeepSeek API密钥")
+        """使用所选 API 生成QA问答对"""
+        if not self.api_config:
+            raise ValueError("请先设置API配置")
         
-        url = "https://api.deepseek.com/v1/chat/completions"
+        url = self.api_config.api_url
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.deepseek_api_key}"
+            "Authorization": f"Bearer {self.api_config.api_key}"
         }
         
         # 限制文本长度，避免超过API限制
@@ -83,7 +90,7 @@ class DataProcessor:
 """
         
         payload = {
-            "model": "deepseek-chat",  # 使用正确的模型名称
+            "model": self.api_config.model,
             "messages": [
                 {
                     "role": "user",
@@ -216,8 +223,7 @@ if __name__ == "__main__":
         output_file="processed_qa_pairs.json"
     )
     
-    # 这里需要用户提供API密钥
-    api_key = input("请输入DeepSeek API密钥: ")
-    processor.set_api_key(api_key)
+    api_config = prompt_api_config()
+    processor.set_api_config(api_config)
     
     processor.process()

@@ -1,23 +1,27 @@
 import json
+import os
 import requests
 import sys
-from config import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, QUESTION_COUNT, MAX_TOKENS, TEMPERATURE, QUESTIONS_FILE
+from config import DEEPSEEK_API_KEY, QUESTION_COUNT, MAX_TOKENS, TEMPERATURE, QUESTIONS_FILE
 
-def get_api_key():
-    """获取API密钥，如果配置中的密钥无效则提示用户输入"""
-    if DEEPSEEK_API_KEY == "your_deepseek_api_key" or not DEEPSEEK_API_KEY:
-        print("请输入DeepSeek API密钥: ", end="")
-        api_key = input().strip()
-        if not api_key:
-            print("错误: API密钥不能为空")
-            sys.exit(1)
-        return api_key
-    return DEEPSEEK_API_KEY
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from api_options import ApiConfig, ensure_api_config, prompt_api_config
 
-def generate_questions(api_key=None):
+def get_api_config():
+    """获取 API 配置，如果配置中的密钥无效则提示用户选择服务商和模型"""
+    try:
+        return prompt_api_config(None if DEEPSEEK_API_KEY == "your_deepseek_api_key" else DEEPSEEK_API_KEY)
+    except ValueError as exc:
+        print(f"错误: {exc}")
+        sys.exit(1)
+
+def generate_questions(api_config=None):
     """生成电力运检领域的专业问题"""
-    if api_key is None:
-        api_key = get_api_key()
+    if api_config is None:
+        api_config = get_api_config()
+    else:
+        api_config = ensure_api_config(api_config)
+
     prompt = (
         f"请生成{QUESTION_COUNT}个电力运检领域的专业问题，涵盖以下方面：\n"
         "1. 电力设备运检（如变压器、断路器、线路等）\n"
@@ -30,11 +34,11 @@ def generate_questions(api_key=None):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
+        "Authorization": f"Bearer {api_config.api_key}"
     }
 
     data = {
-        "model": "deepseek-chat",
+        "model": api_config.model,
         "messages": [
             {"role": "system", "content": "你是一位电力运检领域的专家，擅长生成专业、具体的技术问题。"},
             {"role": "user", "content": prompt}
@@ -43,7 +47,7 @@ def generate_questions(api_key=None):
         "temperature": TEMPERATURE
     }
 
-    response = requests.post(DEEPSEEK_API_URL, headers=headers, json=data)
+    response = requests.post(api_config.api_url, headers=headers, json=data)
     response_json = response.json()
 
     if "choices" in response_json:

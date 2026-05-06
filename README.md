@@ -1,203 +1,152 @@
-# 大模型调优验证适配项目
+# 电力运检大模型调优验证项目
 
-## 项目概述
-
-本项目旨在为电力运检场景提供大模型调优验证适配服务，包括大模型基座运检场景应用优化试验、面向电力运检的大模型压缩实施验证、面向电力运检的大模型应用环境适配运行。
+本项目用于构建电力运检领域文本资料、生成微调问答数据，并基于 LlamaFactory 完成模型微调与效果评估。当前流程支持通过控制台选择 API 服务商与模型，可使用 DeepSeek API 或小米 MiMo OpenAI 兼容接口来生成资料、生成评测问题和自动评估回答。
 
 ## 目录结构
 
-```
-├── clean/            # 数据处理模块
-│   ├── data_processor.py  # 数据处理脚本
-│   ├── processed_files.json  # 处理文件记录
-│   └── processed_qa_pairs.json  # 生成的问答对数据
-├── crawl/            # 爬虫模块
-│   ├── electricity_crawler.py  # 电力资料爬虫
-│   └── visited_urls.json        # 已访问URL记录
-├── data/             # 数据目录
-│   └── ...           # 电力相关文本资料
-├── eval/             # 模型评估模块
-│   ├── config.py     # 评估配置
-│   ├── generate_questions.py  # 生成专业问题
-│   ├── get_model_answers.py  # 获取模型回答
-│   ├── evaluate_answers.py  # 评估模型回答
-│   └── run_evaluation.py  # 评估主脚本
-├── LlamaFactory/     # 大模型微调框架
-├── requirements.txt  # 项目依赖
-└── README.md         # 项目说明文档
-```
-
-## 安装方法
-
-### 1. 环境准备
-
-确保您的系统已安装Python 3.11或更高版本（LlamaFactory要求）。
-
-### 2. 安装依赖
-
-项目根目录下提供了统一的依赖配置文件，执行以下命令安装所有依赖：
-
-```bash
-pip install -r requirements.txt
-
-# 安装LlamaFactory
-cd LlamaFactory
-pip install -e .
-pip install -r requirements/metrics.txt
+```text
+├── api_options.py                       # API 服务商、模型选择与请求地址配置
+├── clean/
+│   ├── data_processor.py                # 将 data/*.txt 转换为 QA 问答对
+│   ├── processed_files.json             # 已处理文本文件记录
+│   └── processed_qa_pairs.json          # 生成的 QA 数据
+├── crawl/
+│   ├── electricity_crawler.py           # 电力资料爬虫（实验性质）
+│   └── visited_urls.json                # 爬虫访问记录
+├── data/
+│   ├── generate_electricity_docs.py     # 批量生成电力资料文本
+│   └── *.txt                            # 电力运检原始文本资料
+├── eval/
+│   ├── config.py                        # 评估相关路径与参数
+│   ├── generate_questions.py            # 生成评测问题
+│   ├── get_model_answers.py             # 获取训练前/训练后模型回答
+│   ├── evaluate_answers.py              # 人工或 API 自动评分
+│   └── run_evaluation.py                # 评估主菜单
+├── LlamaFactory/                        # 本地 LlamaFactory 微调框架
+├── requirements.txt                     # Python 依赖
+└── README.md
 ```
 
-## 使用方法
+## 环境安装
 
-### 1. 数据收集
+建议使用 Python 3.11，并在项目根目录创建虚拟环境：
 
-#### 方法一：使用爬虫收集数据(目前不可用)
-
-```bash
-cd crawl
-python electricity_crawler.py
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-爬虫会自动爬取电力相关网站的文章内容，并保存到`data`目录。
+`requirements.txt` 已使用本地 LlamaFactory：
 
-#### 方法二：手动添加数据
-
-将电力相关的文本资料保存到`data`目录，格式为.txt文件。
-
-### 2. 数据处理
-
-运行数据处理脚本，将文本资料转换为大模型微调所需的QA问答对格式：
-
-```bash
-cd clean
-python data_processor.py
+```text
+-e ./LlamaFactory
+-r LlamaFactory/requirements/metrics.txt
 ```
 
-运行时需要输入DeepSeek API密钥，脚本会自动处理`data`目录中的文本文件，生成QA问答对并保存到`processed_qa_pairs.json`文件。
+如果你的显卡、CUDA 或 PyTorch 版本有特殊要求，请按本机环境单独调整 `torch`、`torchvision`、`torchaudio` 版本。
+
+## API 选择
+
+以下脚本会在控制台先让你选择 API 服务商，再选择具体模型，最后输入对应 API key：
+
+- `data/generate_electricity_docs.py`
+- `clean/data_processor.py`
+- `eval/generate_questions.py`
+- `eval/evaluate_answers.py`
+- `eval/run_evaluation.py`
+
+当前内置服务商：
+
+- DeepSeek：`https://api.deepseek.com/v1`
+- Xiaomi MiMo：`https://token-plan-cn.xiaomimimo.com/v1`
+
+小米 MiMo 使用 OpenAI 兼容的 `/chat/completions` 接口。当前菜单仅保留文本相关模型 ID：`mimo-v2.5-pro`、`mimo-v2.5`、`mimo-v2-pro`、`mimo-v2-omni`。
+
+## 使用流程
+
+### 1. 准备电力资料
+
+方式一：批量生成资料（推荐）。
+
+```powershell
+python data/generate_electricity_docs.py
+```
+
+脚本会提示输入生成数量，并在 `data/` 下生成 `AI生成_*.txt` 文件。提示词会轮换生成运维规程、故障分析、培训资料、技术论文、应急预案、设备手册、巡检纪要等类型，文本长度不会太短，尽量贴近真实电力运检资料。
+
+方式二：手动添加资料。
+
+将电力相关文本保存到 `data/` 目录，文件扩展名使用 `.txt`。
+
+方式三：爬虫收集资料（实验性质）。
+
+```powershell
+python crawl/electricity_crawler.py
+```
+
+爬虫可能受到目标站点结构变化或反爬限制影响，建议优先使用批量生成或手动整理资料。
+
+### 2. 生成 QA 问答数据
+
+```powershell
+python clean/data_processor.py
+```
+
+脚本只会扫描 `data/` 下的 `.txt` 文件，不会读取 `data/generate_electricity_docs.py`。已处理文件会记录在 `clean/processed_files.json`，生成结果保存到 `clean/processed_qa_pairs.json`。
 
 ### 3. 模型微调
 
-使用LlamaFactory框架对Qwen3.5 0.8B模型进行微调：
+命令行训练：
 
-#### 方法一：使用命令行
-
-```bash
-cd LlamaFactory
-python src/train.py --config examples/train_lora/qwen3_5_0_8b_lora_sft.yaml
+```powershell
+python LlamaFactory/src/train.py --config LlamaFactory/examples/train_lora/qwen3_5_0_8b_lora_sft.yaml
 ```
 
-#### 方法二：使用Web UI（推荐）
+Web UI（推荐）：
 
-```bash
-cd LlamaFactory
-python src/webui.py
+```powershell
+python LlamaFactory/src/webui.py
 ```
 
-然后访问 `http://127.0.0.1:7860` 进行可视化微调。
+启动后访问：
 
-### 4. 模型压缩（待实现）
-
-对微调后的模型进行压缩，减小模型体积，提高推理速度。
-
-### 5. 模型部署（待实现）
-
-将微调后的模型部署到生产环境，与业务系统对接。
-
-## 训练结果分析
-
-### 训练参数
-
-- 模型：Qwen3.5 0.8B-Instruct
-- 微调方法：LoRA
-- 训练轮次：3
-- 批量大小：4
-- 学习率：1e-4
-- LoRA秩：8
-- LoRA Alpha：16
-
-### 训练指标
-
-| 指标 | 值 |
-|------|-----|
-| 训练轮次 | 3.0 |
-| 训练样本数 | 123,920 tokens |
-| 训练时间 | 5分03秒 |
-| 最终损失 | 1.565 |
-| 训练速度 | 2.082 样本/秒 |
-| 可训练参数 | 5,411,328 (0.63%) |
-| 总参数 | 858,397,248 |
-
-### 损失曲线分析
-
-训练损失从初始的1.9左右逐渐下降到1.4左右，整体趋势良好，说明模型正在有效学习电力运检领域的知识。
-
-## 模型效果对比方法
-
-### 1. 定性评估
-
-使用Web UI与模型进行交互，对比训练前后的回答质量：
-
-```bash
-cd LlamaFactory
-python src/webui.py
+```text
+http://127.0.0.1:7860
 ```
 
-然后在Web UI中：
-- **训练前的模型**：选择模型路径为 `../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5`
-- **训练后的模型**：选择模型路径为 `../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5`，并选择LoRA路径为 `saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42`
+微调配置位于 `LlamaFactory/examples/train_lora/qwen3_5_0_8b_lora_sft.yaml`，可调整模型路径、数据集、训练轮次、batch size、学习率、LoRA rank、LoRA alpha 等参数。
 
-### 2. DeepSeek自动评估
+### 4. 模型效果评估
 
-使用DeepSeek API对模型回答进行自动评估：
+运行评估主菜单：
 
-1. **配置API密钥**：编辑 `eval/config.py` 文件，将 `DEEPSEEK_API_KEY` 替换为您的 DeepSeek API 密钥
-
-2. **运行自动评估**：
-
-```bash
-cd eval
-python run_evaluation.py
+```powershell
+python eval/run_evaluation.py
 ```
 
-选择选项3，仅运行自动评估步骤（前提是已有问题和回答数据）
+菜单说明：
 
-3. **评估方式说明**：
-   - 选项 1：仅生成问题
-   - 选项 2：仅获取模型回答
-   - 选项 3：仅运行自动评估（需要已有问题和回答）
-   - 选项 4：运行完整评估流程（一键执行）
+1. 生成电力运检领域专业问题
+2. 获取模型回答
+3. 评估模型回答
+4. 运行完整评估流程
+0. 退出
 
-**注意**：评估系统会使用DeepSeek-V3模型对两个模型（训练前和训练后）的回答进行盲打分，满分100分，并输出两个模型的评分结果。
+评估配置在 `eval/config.py` 中，包括训练前模型路径、LoRA 路径、问题数量、输出文件名等。自动评估会调用你在控制台选择的 API 模型，对训练前后回答进行评分并保存到 `eval/evaluation_results.json`。
 
-## 配置说明
+## 常用文件说明
 
-### 数据处理配置
-
-在`clean/data_processor.py`中，您可以修改以下参数：
-
-- `data_dir`：数据目录路径
-- `output_file`：输出文件路径
-- `max_tokens`：API请求的最大令牌数
-- `temperature`：生成文本的温度参数
-
-### 模型微调配置
-
-在`LlamaFactory/examples/train_lora/qwen3_5_0_8b_lora_sft.yaml`中，您可以修改以下参数：
-
-- `model_name_or_path`：预训练模型路径
-- `dataset`：训练数据集名称
-- `epoch`：训练轮次
-- `batch_size`：批量大小
-- `learning_rate`：学习率
-- `lora_rank`：LoRA秩
-- `lora_alpha`：LoRA Alpha值
+- `api_options.py`：统一维护服务商、模型列表、base URL 与控制台选择逻辑。
+- `data/generate_electricity_docs.py`：生成原始电力资料文本，只创建 `.txt`，不会影响其它脚本本身的加载。
+- `clean/data_processor.py`：读取 `data/*.txt`，调用所选 API 生成 instruction/output 格式 QA。
+- `eval/run_evaluation.py`：评估流程入口，完整流程中只选择一次 API，生成问题和自动评分会复用同一配置。
+- `requirements.txt`：使用本地 LlamaFactory，避免从远端 git 子目录安装时出现 README 缺失等构建问题。
 
 ## 注意事项
 
-1. 使用DeepSeek API需要申请API密钥
-2. 爬虫运行可能会受到网站反爬机制的限制
-3. 模型微调需要足够的GPU资源（推荐至少8GB显存）
-4. 请确保数据符合相关法律法规要求
-
-## 联系方式
-
-如有问题，请联系项目负责人。
+1. 请妥善保管 API key，不要提交到仓库。
+2. AI 生成资料只适合实验和数据构造，正式业务场景应由专业人员复核。
+3. 如果重新生成或替换了 `data/*.txt`，需要留意 `clean/processed_files.json`，已记录的同名文件不会重复处理。
+4. 模型微调需要足够 GPU 资源，显存不足时可降低 batch size、启用更小模型或使用 LoRA/量化配置。
+5. 爬虫模块为实验性质，使用时请遵守目标网站规则和相关法律法规。
