@@ -6,7 +6,7 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 # 模型配置
 ORIGINAL_MODEL_PATH = "../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5"
-FINE_TUNED_MODEL_PATH = "../LlamaFactory/saves/Qwen3.5-0.8B-Base/lora/train_2026-04-12-00-04-45/checkpoint-42"
+FINE_TUNED_MODEL_PATH = "../saves/Qwen3.5-0.8B-Base/lora/train_2026-05-06-20-44-32/checkpoint-42"
 
 # 评估配置
 QUESTION_COUNT = 10  # 生成的问题数量
