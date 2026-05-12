@@ -2857,8 +2857,8 @@ register_model_group(
 register_model_group(
     models={
         "Qwen3.5-0.8B-Base": {
-            DownloadSource.DEFAULT: "Qwen/Qwen3.5-0.8B-Base",
-            DownloadSource.MODELSCOPE: "Qwen/Qwen3.5-0.8B-Base",
+            DownloadSource.DEFAULT: "../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5",
+            DownloadSource.MODELSCOPE: "../model/models--Qwen--Qwen3.5-0.8B-Base/snapshots/a9a407bcae463285164cc9133995c515379cebe5",
         },
         "Qwen3.5-2B-Base": {
             DownloadSource.DEFAULT: "Qwen/Qwen3.5-2B-Base",
